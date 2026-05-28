@@ -1,0 +1,19 @@
+# Power BI binary files
+*.pbit
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs/temp
+*.log
+tmp/
+temp/
