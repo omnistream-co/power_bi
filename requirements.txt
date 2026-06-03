@@ -1,0 +1,12 @@
+black @ git+ssh://git@github.com/omnistream-co/black.git@0435a98c279f66e341cc950cb60ab3be38d72984
+click==8.4.1
+colorama==0.4.6
+greenlet==3.5.1
+mypy_extensions==1.1.0
+packaging==26.0
+pathspec==1.1.1
+platformdirs==4.9.6
+psycopg2-binary==2.9.6
+PyYAML==6.0.3
+SQLAlchemy==2.0.17
+typing_extensions==4.15.0
