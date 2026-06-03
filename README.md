@@ -183,7 +183,7 @@ Report.SemanticModel/definition/expressions.tmdl
 Run:
 
 ```bash
-python scripts/update_pobi_params.py --report "Violation Report" 
+python scripts/update_pbi_params.py --report "Violation Report Store Pog" 
     --env DEV
     --db merchant_db_17
 ```
@@ -396,12 +396,10 @@ From Step 5:
 ```text
 update_pbi_params
 ↓
-refresh_query_sources
-↓
 open PBIP
 ↓
-Refresh
+Refresh and check
 ↓
-Save PBIX
+Save AS PBIX
 ```
 
