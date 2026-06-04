@@ -17,3 +17,10 @@ Thumbs.db
 *.log
 tmp/
 temp/
+
+# Power BI project files
+*.pbip
+
+# Power BI folders
+*.Report/
+*.SemanticModel/
