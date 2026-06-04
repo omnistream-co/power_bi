@@ -225,7 +225,7 @@ def update_report_parameters(
     )
     text_content = update_expression_if_exists(
         text_content,
-        "Para_store_code",
+        "Para_storecode",
         str(store_code),
     )
 
