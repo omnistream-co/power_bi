@@ -106,45 +106,18 @@ pog_raw_data_json AS (
         AND osp.filter_config_id = '{{gen_id}}'
         AND osp.is_latest_version = TRUE
 ),
-planogram_data AS (
-    SELECT
-        osp.id,
-        osp.store AS store_code,
-        CAST(FLOOR(CAST(bay ->> 'bayNo' AS numeric)) AS integer) AS planogram_bays_bayNo,
-        CAST(shelf_element ->> 'width' AS numeric) AS planogram_bays_shelves_width,
-        CAST(shelf_element ->> 'depth' AS numeric) AS planogram_bays_shelves_depth,
-        shelf_index AS planogram_bays_shelves_shelfNo,
-        COALESCE((
-            SELECT
-                items.value ->> 'shelf'
-            FROM jsonb_array_elements(shelf_element -> 'items')
-            WITH ORDINALITY AS items (value, idx)
-        ORDER BY items.idx LIMIT 1), CONCAT(osp.id, '_', bay ->> 'bayNo', '_', shelf_index)) AS shelf_id
-        FROM
-            output_store_pog osp
-        CROSS JOIN LATERAL jsonb_array_elements(CAST(osp.pog AS jsonb) -> 'planogram' -> 'bays') AS bay
-        CROSS JOIN LATERAL jsonb_array_elements(bay -> 'shelves')
-        WITH ORDINALITY AS shelf (shelf_element, shelf_index)
-    WHERE
-        osp.base_pog_id = '{{bpid}}'
-        AND osp.filter_config_id = '{{gen_id}}'
-        AND osp.is_latest_version = TRUE
-),
 DistinctItems AS (
+    -- v2: planogram_data CTE removed; its bay/shelf columns are computed inline here
+    -- (bay + shelf are already in scope during the item expansion). WITH ORDINALITY
+    -- on shelves gives planogram_bays_shelves_shelfNo. No join -> no sort -> no temp spill.
     SELECT DISTINCT
-        di.*,
-        pd.planogram_bays_bayNo,
-        pd.planogram_bays_shelves_width,
-        pd.planogram_bays_shelves_depth,
-        pd.planogram_bays_shelves_shelfNo
-    FROM ( SELECT DISTINCT
-            osp.id,
-            osp.filter_config_id,
-            osp.base_pog_id,
-            osp.store AS store_code,
-            item ->> 'productCode' AS product_code,
-            item ->> 'inCoreRange' AS core_range,
-            CAST(item ->> 'price' AS numeric) AS price,
+        osp.id,
+        osp.filter_config_id,
+        osp.base_pog_id,
+        osp.store AS store_code,
+        item ->> 'productCode' AS product_code,
+        item ->> 'inCoreRange' AS core_range,
+        CAST(item ->> 'price' AS numeric) AS price,
         CAST(item ->> 'profit' AS numeric) AS profit,
         item ->> 'name' AS name,
         item ->> 'cdt1' AS cdt1,
@@ -201,18 +174,21 @@ DistinctItems AS (
         ELSE
             CAST(item ->> 'caseHeight' AS numeric)
         END AS merch_height,
-        item ->> 'shelf' AS shelf_id
+        item ->> 'shelf' AS shelf_id,
+        CAST(FLOOR(CAST(bay ->> 'bayNo' AS numeric)) AS integer) AS planogram_bays_bayNo,
+        CAST(shelf ->> 'width' AS numeric) AS planogram_bays_shelves_width,
+        CAST(shelf ->> 'depth' AS numeric) AS planogram_bays_shelves_depth,
+        shelf_index AS planogram_bays_shelves_shelfNo
     FROM
         output_store_pog osp
         CROSS JOIN LATERAL jsonb_array_elements(CAST(osp.pog AS jsonb) -> 'planogram' -> 'bays') AS bay
-        CROSS JOIN LATERAL jsonb_array_elements(bay -> 'shelves') AS shelf
+        CROSS JOIN LATERAL jsonb_array_elements(bay -> 'shelves')
+        WITH ORDINALITY AS s (shelf, shelf_index)
         CROSS JOIN LATERAL jsonb_array_elements(shelf -> 'items') AS item
     WHERE
         osp.base_pog_id = '{{bpid}}'
         AND osp.filter_config_id = '{{gen_id}}'
-        AND osp.is_latest_version = TRUE) di
-    LEFT JOIN planogram_data pd ON di.id = pd.id
-        AND di.shelf_id = pd.shelf_id
+        AND osp.is_latest_version = TRUE
 ),
 AggregatedItems AS (
     SELECT
@@ -272,24 +248,24 @@ AggregatedItems AS (
                 END)) / quantity) * 7) AS dos1
     FROM
         DistinctItems
-GROUP BY
-    filter_config_id,
-    merch_height,
-    merch_width,
-    merch_depth,
-    base_pog_id,
-    store_code,
-    product_code,
-    core_range,
-    name,
-    brand,
-    category_code,
-    merch_style_orig,
-    p_depth,
-    cdt1,
-    cdt2,
-    cdt3,
-    variant
+    GROUP BY
+        filter_config_id,
+        merch_height,
+        merch_width,
+        merch_depth,
+        base_pog_id,
+        store_code,
+        product_code,
+        core_range,
+        name,
+        brand,
+        category_code,
+        merch_style_orig,
+        p_depth,
+        cdt1,
+        cdt2,
+        cdt3,
+        variant
 ),
 combined_data AS (
     SELECT
