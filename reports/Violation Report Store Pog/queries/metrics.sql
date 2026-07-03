@@ -14,16 +14,16 @@ v_merchflow_projects_temp AS (
         p.filter_config_id,
         s.base_pog_id,
         MAX(s.id) AS id
-    FROM
-        output_store_pog s
-        JOIN merchflow_projects p ON s.filter_config_id = p.filter_config_id
-            AND s.is_latest_version = TRUE
-    GROUP BY
-        p.project_id,
-        s.store,
-        p.review_id,
-        p.filter_config_id,
-        s.base_pog_id
+FROM
+    output_store_pog s
+    JOIN merchflow_projects p ON s.filter_config_id = p.filter_config_id
+        AND s.is_latest_version = TRUE
+GROUP BY
+    p.project_id,
+    s.store,
+    p.review_id,
+    p.filter_config_id,
+    s.base_pog_id
 )
 SELECT
     osp.store AS store_code,
@@ -34,11 +34,11 @@ SELECT
 FROM
     output_store_pog osp
 WHERE (osp.filter_config_id, osp.base_pog_id) IN (
-    SELECT
-        filter_config_id,
-        base_pog_id
-    FROM
-        v_merchflow_projects_temp)
+        SELECT
+            filter_config_id,
+            base_pog_id
+        FROM
+            v_merchflow_projects_temp)
 GROUP BY
     osp.filter_config_id,
     osp.base_pog_id,
