@@ -183,68 +183,68 @@ aggregated_items AS (
         distinct_items.product_code,
         distinct_items.core_range,
         avg(distinct_items.price) AS price,
-        sum(distinct_items.profit) AS profit,
-        distinct_items.name,
-        distinct_items.cdt1,
-        distinct_items.cdt2,
-        distinct_items.cdt3,
-        distinct_items.brand,
-        distinct_items.variant,
-        distinct_items.category_code,
-        distinct_items.merch_style_orig,
-        sum(distinct_items.no_of_units_in_tray) AS no_of_units_in_tray,
-        sum(distinct_items.no_of_units_in_case) AS no_of_units_in_case,
-        avg(distinct_items.quantity) AS quantity,
-        distinct_items.p_depth,
-        sum(distinct_items.facings) AS total_facings,
-        avg(distinct_items.facings) AS facings,
-        sum(distinct_items.facings_rows) AS facings_rows,
-        sum(distinct_items.sales_amount) AS sales_amount,
-        avg(distinct_items.shelf_depth) AS shelf_depth,
-        avg(distinct_items.shelf_width) AS shelf_width,
-        sum(
-            CASE WHEN distinct_items.merch_style_orig = 'TRAY'::text THEN
-                distinct_items.no_of_units_in_tray
-            WHEN distinct_items.merch_style_orig = 'CASE'::text THEN
-                distinct_items.no_of_units_in_case
-            ELSE
-                1::numeric
-            END) AS case_total_number,
-        avg(floor(distinct_items.shelf_depth / distinct_items.p_depth)) AS units_deep,
-        sum(floor(distinct_items.shelf_depth / distinct_items.p_depth) * distinct_items.facings * CASE WHEN distinct_items.merch_style_orig = 'TRAY'::text THEN
-                distinct_items.no_of_units_in_tray
-            WHEN distinct_items.merch_style_orig = 'CASE'::text THEN
-                distinct_items.no_of_units_in_case
-            ELSE
-                1::numeric
-            END) AS uos1,
-        sum(floor(distinct_items.shelf_depth / distinct_items.p_depth) * distinct_items.facings * CASE WHEN distinct_items.merch_style_orig = 'TRAY'::text THEN
-                distinct_items.no_of_units_in_tray
-            WHEN distinct_items.merch_style_orig = 'CASE'::text THEN
-                distinct_items.no_of_units_in_case
-            ELSE
-                1::numeric
-            END / distinct_items.quantity * 7::numeric) AS dos1
-    FROM
-        distinct_items
-    GROUP BY
-        distinct_items.filter_config_id,
-        distinct_items.merch_height,
-        distinct_items.merch_width,
-        distinct_items.merch_depth,
-        distinct_items.base_pog_id,
-        distinct_items.store_code,
-        distinct_items.product_code,
-        distinct_items.core_range,
-        distinct_items.name,
-        distinct_items.brand,
-        distinct_items.category_code,
-        distinct_items.merch_style_orig,
-        distinct_items.p_depth,
-        distinct_items.cdt1,
-        distinct_items.cdt2,
-        distinct_items.cdt3,
-        distinct_items.variant
+    sum(distinct_items.profit) AS profit,
+    distinct_items.name,
+    distinct_items.cdt1,
+    distinct_items.cdt2,
+    distinct_items.cdt3,
+    distinct_items.brand,
+    distinct_items.variant,
+    distinct_items.category_code,
+    distinct_items.merch_style_orig,
+    sum(distinct_items.no_of_units_in_tray) AS no_of_units_in_tray,
+sum(distinct_items.no_of_units_in_case) AS no_of_units_in_case,
+avg(distinct_items.quantity) AS quantity,
+distinct_items.p_depth,
+sum(distinct_items.facings) AS total_facings,
+avg(distinct_items.facings) AS facings,
+sum(distinct_items.facings_rows) AS facings_rows,
+sum(distinct_items.sales_amount) AS sales_amount,
+avg(distinct_items.shelf_depth) AS shelf_depth,
+avg(distinct_items.shelf_width) AS shelf_width,
+sum(
+    CASE WHEN distinct_items.merch_style_orig = 'TRAY'::text THEN
+        distinct_items.no_of_units_in_tray
+    WHEN distinct_items.merch_style_orig = 'CASE'::text THEN
+        distinct_items.no_of_units_in_case
+    ELSE
+        1::numeric
+    END) AS case_total_number,
+avg(floor(distinct_items.shelf_depth / distinct_items.p_depth)) AS units_deep,
+sum(floor(distinct_items.shelf_depth / distinct_items.p_depth) * distinct_items.facings * CASE WHEN distinct_items.merch_style_orig = 'TRAY'::text THEN
+        distinct_items.no_of_units_in_tray
+    WHEN distinct_items.merch_style_orig = 'CASE'::text THEN
+        distinct_items.no_of_units_in_case
+    ELSE
+        1::numeric
+    END) AS uos1,
+sum(floor(distinct_items.shelf_depth / distinct_items.p_depth) * distinct_items.facings * CASE WHEN distinct_items.merch_style_orig = 'TRAY'::text THEN
+        distinct_items.no_of_units_in_tray
+    WHEN distinct_items.merch_style_orig = 'CASE'::text THEN
+        distinct_items.no_of_units_in_case
+    ELSE
+        1::numeric
+    END / distinct_items.quantity * 7::numeric) AS dos1
+FROM
+    distinct_items
+GROUP BY
+    distinct_items.filter_config_id,
+    distinct_items.merch_height,
+    distinct_items.merch_width,
+    distinct_items.merch_depth,
+    distinct_items.base_pog_id,
+    distinct_items.store_code,
+    distinct_items.product_code,
+    distinct_items.core_range,
+    distinct_items.name,
+    distinct_items.brand,
+    distinct_items.category_code,
+    distinct_items.merch_style_orig,
+    distinct_items.p_depth,
+    distinct_items.cdt1,
+    distinct_items.cdt2,
+    distinct_items.cdt3,
+    distinct_items.variant
 ),
 combined_data AS (
     SELECT
@@ -648,16 +648,16 @@ final_data_with_status AS (
             v_ewma_sales_temp.sales,
             v_ewma_sales_temp.quantity,
             concat(v_ewma_sales_temp.store_code, '-', v_ewma_sales_temp.product_code) AS store_product_id
+    FROM
+        reporting.v_ewma_sales_temp
+    WHERE
+        v_ewma_sales_temp.is_latest_version = TRUE) es ON fd.store_product_id = es.store_product_id
+    LEFT JOIN ( SELECT DISTINCT
+            store.code AS store,
+            store_cat.cluster
         FROM
-            reporting.v_ewma_sales_temp
-        WHERE
-            v_ewma_sales_temp.is_latest_version = TRUE) es ON fd.store_product_id = es.store_product_id
-        LEFT JOIN ( SELECT DISTINCT
-                store.code AS store,
-                store_cat.cluster
-            FROM
-                store_cat
-                JOIN store ON store_cat.store_id = store.id) vss ON fd.store_code::text = vss.store::text
+            store_cat
+            JOIN store ON store_cat.store_id = store.id) vss ON fd.store_code::text = vss.store::text
 ),
 enhanced_final_data AS (
     SELECT
@@ -795,99 +795,99 @@ enhanced_final_data AS (
 aggregated_metrics AS (
     SELECT
         count(DISTINCT enhanced_final_data.store_code) AS store_count,
-        count(DISTINCT enhanced_final_data.cluster) AS cluster_count,
-        sum(
-            CASE WHEN enhanced_final_data.status = 'add'::text THEN
-                1
-            ELSE
-                0
-            END) AS total_distribution_added,
-        sum(
-            CASE WHEN enhanced_final_data.status = 'delete'::text THEN
-                1
-            ELSE
-                0
-            END) AS total_distribution_deleted,
-        sum(
-            CASE WHEN enhanced_final_data.status = 'keep'::text THEN
-                1
-            ELSE
-                0
-            END) AS total_distribution_keep,
-        sum(
-            CASE WHEN enhanced_final_data.ewma_sales > 0::numeric THEN
-                enhanced_final_data.profit
-            ELSE
-                0::numeric
-            END) AS profit_before,
-        sum(
-            CASE WHEN enhanced_final_data.ranged = 'Y'::text THEN
-                enhanced_final_data.profit
-            ELSE
-                0::numeric
-            END) AS profit_now,
-        sum(
-            CASE WHEN enhanced_final_data.status = 'add'::text THEN
-                enhanced_final_data.profit
-            ELSE
-                0::numeric
-            END) AS profits_of_add,
-        sum(
-            CASE WHEN enhanced_final_data.status = 'delete'::text THEN
-                enhanced_final_data.profit
-            ELSE
-                0::numeric
-            END) AS profits_of_delete,
-        sum(
-            CASE WHEN enhanced_final_data.status = 'keep'::text THEN
-                enhanced_final_data.profit
-            ELSE
-                0::numeric
-            END) AS profits_of_keep,
-        sum(
-            CASE WHEN enhanced_final_data.status = 'add'::text THEN
-                enhanced_final_data.sales_amount
-            ELSE
-                0::numeric
-            END) AS sales_of_add,
-        sum(
-            CASE WHEN enhanced_final_data.status = 'delete'::text THEN
-                enhanced_final_data.sales_amount
-            ELSE
-                0::numeric
-            END) AS sales_of_delete,
-        sum(
-            CASE WHEN enhanced_final_data.status = 'keep'::text THEN
-                enhanced_final_data.sales_amount
-            ELSE
-                0::numeric
-            END) AS sales_of_keep,
-        sum(
-            CASE WHEN enhanced_final_data.ewma_sales > 0::numeric THEN
-                enhanced_final_data.sales_amount
-            ELSE
-                0::numeric
-            END) AS sales_realized_before,
-        sum(
-            CASE WHEN enhanced_final_data.ranged = 'Y'::text THEN
-                enhanced_final_data.sales_amount
-            ELSE
-                0::numeric
-            END) AS sales_realized_now,
-        sum(
-            CASE WHEN enhanced_final_data.ewma_quantity > 0::numeric THEN
-                1
-            ELSE
-                0
-            END) AS total_distribution_points_before,
-        sum(
-            CASE WHEN enhanced_final_data.ranged = 'Y'::text THEN
-                1
-            ELSE
-                0
-            END) AS total_distribution_points_now
-    FROM
-        enhanced_final_data
+    count(DISTINCT enhanced_final_data.cluster) AS cluster_count,
+    sum(
+        CASE WHEN enhanced_final_data.status = 'add'::text THEN
+            1
+        ELSE
+            0
+        END) AS total_distribution_added,
+sum(
+    CASE WHEN enhanced_final_data.status = 'delete'::text THEN
+        1
+    ELSE
+        0
+    END) AS total_distribution_deleted,
+sum(
+    CASE WHEN enhanced_final_data.status = 'keep'::text THEN
+        1
+    ELSE
+        0
+    END) AS total_distribution_keep,
+sum(
+    CASE WHEN enhanced_final_data.ewma_sales > 0::numeric THEN
+        enhanced_final_data.profit
+    ELSE
+        0::numeric
+    END) AS profit_before,
+sum(
+    CASE WHEN enhanced_final_data.ranged = 'Y'::text THEN
+        enhanced_final_data.profit
+    ELSE
+        0::numeric
+    END) AS profit_now,
+sum(
+    CASE WHEN enhanced_final_data.status = 'add'::text THEN
+        enhanced_final_data.profit
+    ELSE
+        0::numeric
+    END) AS profits_of_add,
+sum(
+    CASE WHEN enhanced_final_data.status = 'delete'::text THEN
+        enhanced_final_data.profit
+    ELSE
+        0::numeric
+    END) AS profits_of_delete,
+sum(
+    CASE WHEN enhanced_final_data.status = 'keep'::text THEN
+        enhanced_final_data.profit
+    ELSE
+        0::numeric
+    END) AS profits_of_keep,
+sum(
+    CASE WHEN enhanced_final_data.status = 'add'::text THEN
+        enhanced_final_data.sales_amount
+    ELSE
+        0::numeric
+    END) AS sales_of_add,
+sum(
+    CASE WHEN enhanced_final_data.status = 'delete'::text THEN
+        enhanced_final_data.sales_amount
+    ELSE
+        0::numeric
+    END) AS sales_of_delete,
+sum(
+    CASE WHEN enhanced_final_data.status = 'keep'::text THEN
+        enhanced_final_data.sales_amount
+    ELSE
+        0::numeric
+    END) AS sales_of_keep,
+sum(
+    CASE WHEN enhanced_final_data.ewma_sales > 0::numeric THEN
+        enhanced_final_data.sales_amount
+    ELSE
+        0::numeric
+    END) AS sales_realized_before,
+sum(
+    CASE WHEN enhanced_final_data.ranged = 'Y'::text THEN
+        enhanced_final_data.sales_amount
+    ELSE
+        0::numeric
+    END) AS sales_realized_now,
+sum(
+    CASE WHEN enhanced_final_data.ewma_quantity > 0::numeric THEN
+        1
+    ELSE
+        0
+    END) AS total_distribution_points_before,
+sum(
+    CASE WHEN enhanced_final_data.ranged = 'Y'::text THEN
+        1
+    ELSE
+        0
+    END) AS total_distribution_points_now
+FROM
+    enhanced_final_data
 ),
 calculated_metrics AS (
     SELECT
@@ -922,14 +922,14 @@ SELECT
         OR subquery.measure ~~ '%Change%'::text
         OR subquery.measure = '19.Sales_Realization'::text THEN
         round(subquery.value::numeric * 100::numeric, 2) || '%'::text
-    ELSE
-        CASE WHEN abs(subquery.value::numeric) >= 1000000::numeric THEN
-            round(subquery.value::numeric / 1000000::numeric, 2) || 'M'::text
-        WHEN abs(subquery.value::numeric) >= 1000::numeric THEN
-            round(subquery.value::numeric / 1000::numeric, 2) || 'K'::text
-        ELSE
-            round(subquery.value::numeric, 2)::text
-        END
+ELSE
+    CASE WHEN abs(subquery.value::numeric) >= 1000000::numeric THEN
+        round(subquery.value::numeric / 1000000::numeric, 2) || 'M'::text
+    WHEN abs(subquery.value::numeric) >= 1000::numeric THEN
+        round(subquery.value::numeric / 1000::numeric, 2) || 'K'::text
+ELSE
+    round(subquery.value::numeric, 2)::text
+    END
     END AS formatted_value
 FROM (
     SELECT

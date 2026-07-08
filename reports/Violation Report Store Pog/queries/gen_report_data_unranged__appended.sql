@@ -27,7 +27,96 @@ unrangedData AS (
         item ->> 'productCode' AS product_code,
         CAST(0 AS numeric) AS total_facings_rows,
         CAST(0 AS numeric) AS facings_rows,
-        CAST(0 AS numeric) AS facings,
+    CAST(0 AS numeric) AS facings,
+    CAST(item ->> 'price' AS numeric) AS price,
+    CAST(item ->> 'profit' AS numeric) AS profit,
+    item ->> 'name' AS name,
+    item ->> 'cdt1' AS cdt1,
+    item ->> 'cdt2' AS cdt2,
+    item ->> 'cdt3' AS cdt3,
+    item ->> 'variant' AS variant,
+    item ->> 'inCoreRange' AS core_range,
+    item ->> 'brand' AS brand,
+    item ->> 'categoryCode' AS category_code,
+    CAST(item ->> 'salesAmount' AS numeric) AS salesAmount,
+    item ->> 'merchandisingStyle' AS merch_style_orig,
+    CAST(item ->> 'quantity' AS numeric) AS quantity,
+    CASE WHEN item ->> 'orientation' = 'FRONT' THEN
+        CASE WHEN item ->> 'merchandisingStyle' = 'TRAY' THEN
+            CAST(item ->> 'trayDepth' AS numeric)
+        WHEN item ->> 'merchandisingStyle' = 'CASE' THEN
+            CAST(item ->> 'caseDepth' AS numeric)
+        ELSE
+            CAST(item ->> 'unitDepth' AS numeric)
+        END
+    WHEN item ->> 'orientation' = 'SIDE' THEN
+        CASE WHEN item ->> 'merchandisingStyle' = 'TRAY' THEN
+            CAST(item ->> 'trayWidth' AS numeric)
+        WHEN item ->> 'merchandisingStyle' = 'CASE' THEN
+            CAST(item ->> 'caseWidth' AS numeric)
+        ELSE
+            CAST(item ->> 'unitWidth' AS numeric)
+        END
+    ELSE
+        NULL
+    END AS p_depth,
+    CASE WHEN item ->> 'merchandisingStyle' = 'TRAY' THEN
+        CAST(item ->> 'trayDepth' AS numeric)
+    WHEN item ->> 'merchandisingStyle' = 'UNIT' THEN
+        CAST(item ->> 'unitDepth' AS numeric)
+    ELSE
+        CAST(item ->> 'caseDepth' AS numeric)
+    END AS merch_depth,
+    CASE WHEN item ->> 'merchandisingStyle' = 'TRAY' THEN
+        CAST(item ->> 'trayWidth' AS numeric)
+    WHEN item ->> 'merchandisingStyle' = 'UNIT' THEN
+        CAST(item ->> 'unitWidth' AS numeric)
+    ELSE
+        CAST(item ->> 'caseWidth' AS numeric)
+    END AS merch_width,
+    CASE WHEN item ->> 'merchandisingStyle' = 'TRAY' THEN
+        CAST(item ->> 'trayHeight' AS numeric)
+    WHEN item ->> 'merchandisingStyle' = 'UNIT' THEN
+        CAST(item ->> 'unitHeight' AS numeric)
+    ELSE
+        CAST(item ->> 'caseHeight' AS numeric)
+    END AS merch_height,
+    item ->> 'shelf' AS shelf_id
+FROM
+    output_store_pog osp
+        CROSS JOIN LATERAL jsonb_array_elements(CAST(osp.pog AS jsonb) -> 'unrangedItems') AS item
+    WHERE
+        osp.base_pog_id = '{{bpid}}'
+        AND osp.filter_config_id = '{{gen_id}}'
+        AND osp.is_latest_version = TRUE
+),
+pog_raw_data_json AS (
+    SELECT
+        osp.id,
+        osp.filter_config_id,
+        osp.base_pog_id,
+        pm_elem ->> 'OOS' AS oos,
+        pm_elem ->> 'store_code' AS store_code,
+        pm_elem ->> 'product_code' AS product_code
+    FROM
+        output_store_pog osp
+        CROSS JOIN LATERAL jsonb_array_elements(CAST(osp.pog_raw_data AS jsonb) -> 'pm') AS pm_elem
+    WHERE
+        osp.base_pog_id = '{{bpid}}'
+        AND osp.filter_config_id = '{{gen_id}}'
+        AND osp.is_latest_version = TRUE
+),
+DistinctItems AS (
+    -- v2: planogram_data CTE removed; its bay/shelf columns are computed inline here
+    -- (bay + shelf are already in scope during the item expansion). WITH ORDINALITY
+    -- on shelves gives planogram_bays_shelves_shelfNo. No join -> no sort -> no temp spill.
+    SELECT DISTINCT
+        osp.id,
+        osp.filter_config_id,
+        osp.base_pog_id,
+        osp.store AS store_code,
+        item ->> 'productCode' AS product_code,
+        item ->> 'inCoreRange' AS core_range,
         CAST(item ->> 'price' AS numeric) AS price,
         CAST(item ->> 'profit' AS numeric) AS profit,
         item ->> 'name' AS name,
@@ -35,12 +124,16 @@ unrangedData AS (
         item ->> 'cdt2' AS cdt2,
         item ->> 'cdt3' AS cdt3,
         item ->> 'variant' AS variant,
-        item ->> 'inCoreRange' AS core_range,
         item ->> 'brand' AS brand,
         item ->> 'categoryCode' AS category_code,
         CAST(item ->> 'salesAmount' AS numeric) AS salesAmount,
         item ->> 'merchandisingStyle' AS merch_style_orig,
+        CAST(item ->> 'noOfUnitsInTray' AS numeric) AS noOfUnitsInTray,
+        CAST(item ->> 'noOfUnitsInCase' AS numeric) AS noOfUnitsInCase,
         CAST(item ->> 'quantity' AS numeric) AS quantity,
+        CAST(item ->> 'facings' AS numeric) AS facings,
+        CAST(item ->> 'facingsRows' AS numeric) AS facings_rows,
+        CAST(item ->> 'facings' AS numeric) * CAST(item ->> 'facingsRows' AS numeric) AS total_facings_rows,
         CASE WHEN item ->> 'orientation' = 'FRONT' THEN
             CASE WHEN item ->> 'merchandisingStyle' = 'TRAY' THEN
                 CAST(item ->> 'trayDepth' AS numeric)
@@ -81,138 +174,21 @@ unrangedData AS (
         ELSE
             CAST(item ->> 'caseHeight' AS numeric)
         END AS merch_height,
-        item ->> 'shelf' AS shelf_id
-    FROM
-        output_store_pog osp
-        CROSS JOIN LATERAL jsonb_array_elements(CAST(osp.pog AS jsonb) -> 'unrangedItems') AS item
-    WHERE
-        osp.base_pog_id = '{{bpid}}'
-        AND osp.filter_config_id = '{{gen_id}}'
-        AND osp.is_latest_version = TRUE
-),
-pog_raw_data_json AS (
-    SELECT
-        osp.id,
-        osp.filter_config_id,
-        osp.base_pog_id,
-        pm_elem ->> 'OOS' AS oos,
-        pm_elem ->> 'store_code' AS store_code,
-        pm_elem ->> 'product_code' AS product_code
-    FROM
-        output_store_pog osp
-        CROSS JOIN LATERAL jsonb_array_elements(CAST(osp.pog_raw_data AS jsonb) -> 'pm') AS pm_elem
-    WHERE
-        osp.base_pog_id = '{{bpid}}'
-        AND osp.filter_config_id = '{{gen_id}}'
-        AND osp.is_latest_version = TRUE
-),
-planogram_data AS (
-    SELECT
-        osp.id,
-        osp.store AS store_code,
+        item ->> 'shelf' AS shelf_id,
         CAST(FLOOR(CAST(bay ->> 'bayNo' AS numeric)) AS integer) AS planogram_bays_bayNo,
-        CAST(shelf_element ->> 'width' AS numeric) AS planogram_bays_shelves_width,
-        CAST(shelf_element ->> 'depth' AS numeric) AS planogram_bays_shelves_depth,
-        shelf_index AS planogram_bays_shelves_shelfNo,
-        COALESCE((
-            SELECT
-                items.value ->> 'shelf'
-            FROM jsonb_array_elements(shelf_element -> 'items')
-            WITH ORDINALITY AS items (value, idx)
-        ORDER BY items.idx LIMIT 1), CONCAT(osp.id, '_', bay ->> 'bayNo', '_', shelf_index)) AS shelf_id
-        FROM
-            output_store_pog osp
+        CAST(shelf ->> 'width' AS numeric) AS planogram_bays_shelves_width,
+        CAST(shelf ->> 'depth' AS numeric) AS planogram_bays_shelves_depth,
+        shelf_index AS planogram_bays_shelves_shelfNo
+    FROM
+        output_store_pog osp
         CROSS JOIN LATERAL jsonb_array_elements(CAST(osp.pog AS jsonb) -> 'planogram' -> 'bays') AS bay
         CROSS JOIN LATERAL jsonb_array_elements(bay -> 'shelves')
-        WITH ORDINALITY AS shelf (shelf_element, shelf_index)
-    WHERE
-        osp.base_pog_id = '{{bpid}}'
-        AND osp.filter_config_id = '{{gen_id}}'
-        AND osp.is_latest_version = TRUE
-),
-DistinctItems AS (
-    SELECT DISTINCT
-        di.*,
-        pd.planogram_bays_bayNo,
-        pd.planogram_bays_shelves_width,
-        pd.planogram_bays_shelves_depth,
-        pd.planogram_bays_shelves_shelfNo
-    FROM ( SELECT DISTINCT
-            osp.id,
-            osp.filter_config_id,
-            osp.base_pog_id,
-            osp.store AS store_code,
-            item ->> 'productCode' AS product_code,
-            item ->> 'inCoreRange' AS core_range,
-            CAST(item ->> 'price' AS numeric) AS price,
-            CAST(item ->> 'profit' AS numeric) AS profit,
-            item ->> 'name' AS name,
-            item ->> 'cdt1' AS cdt1,
-            item ->> 'cdt2' AS cdt2,
-            item ->> 'cdt3' AS cdt3,
-            item ->> 'variant' AS variant,
-            item ->> 'brand' AS brand,
-            item ->> 'categoryCode' AS category_code,
-            CAST(item ->> 'salesAmount' AS numeric) AS salesAmount,
-            item ->> 'merchandisingStyle' AS merch_style_orig,
-            CAST(item ->> 'noOfUnitsInTray' AS numeric) AS noOfUnitsInTray,
-            CAST(item ->> 'noOfUnitsInCase' AS numeric) AS noOfUnitsInCase,
-            CAST(item ->> 'quantity' AS numeric) AS quantity,
-            CAST(item ->> 'facings' AS numeric) AS facings,
-            CAST(item ->> 'facingsRows' AS numeric) AS facings_rows,
-            CAST(item ->> 'facings' AS numeric) * CAST(item ->> 'facingsRows' AS numeric) AS total_facings_rows,
-            CASE WHEN item ->> 'orientation' = 'FRONT' THEN
-                CASE WHEN item ->> 'merchandisingStyle' = 'TRAY' THEN
-                    CAST(item ->> 'trayDepth' AS numeric)
-                WHEN item ->> 'merchandisingStyle' = 'CASE' THEN
-                    CAST(item ->> 'caseDepth' AS numeric)
-                ELSE
-                    CAST(item ->> 'unitDepth' AS numeric)
-                END
-            WHEN item ->> 'orientation' = 'SIDE' THEN
-                CASE WHEN item ->> 'merchandisingStyle' = 'TRAY' THEN
-                    CAST(item ->> 'trayWidth' AS numeric)
-                WHEN item ->> 'merchandisingStyle' = 'CASE' THEN
-                    CAST(item ->> 'caseWidth' AS numeric)
-                ELSE
-                    CAST(item ->> 'unitWidth' AS numeric)
-                END
-            ELSE
-                NULL
-            END AS p_depth,
-            CASE WHEN item ->> 'merchandisingStyle' = 'TRAY' THEN
-                CAST(item ->> 'trayDepth' AS numeric)
-            WHEN item ->> 'merchandisingStyle' = 'UNIT' THEN
-                CAST(item ->> 'unitDepth' AS numeric)
-            ELSE
-                CAST(item ->> 'caseDepth' AS numeric)
-            END AS merch_depth,
-            CASE WHEN item ->> 'merchandisingStyle' = 'TRAY' THEN
-                CAST(item ->> 'trayWidth' AS numeric)
-            WHEN item ->> 'merchandisingStyle' = 'UNIT' THEN
-                CAST(item ->> 'unitWidth' AS numeric)
-            ELSE
-                CAST(item ->> 'caseWidth' AS numeric)
-            END AS merch_width,
-            CASE WHEN item ->> 'merchandisingStyle' = 'TRAY' THEN
-                CAST(item ->> 'trayHeight' AS numeric)
-            WHEN item ->> 'merchandisingStyle' = 'UNIT' THEN
-                CAST(item ->> 'unitHeight' AS numeric)
-            ELSE
-                CAST(item ->> 'caseHeight' AS numeric)
-            END AS merch_height,
-            item ->> 'shelf' AS shelf_id
-        FROM
-            output_store_pog osp
-        CROSS JOIN LATERAL jsonb_array_elements(CAST(osp.pog AS jsonb) -> 'planogram' -> 'bays') AS bay
-        CROSS JOIN LATERAL jsonb_array_elements(bay -> 'shelves') AS shelf
+        WITH ORDINALITY AS s (shelf, shelf_index)
         CROSS JOIN LATERAL jsonb_array_elements(shelf -> 'items') AS item
     WHERE
         osp.base_pog_id = '{{bpid}}'
         AND osp.filter_config_id = '{{gen_id}}'
-        AND osp.is_latest_version = TRUE) di
-    LEFT JOIN planogram_data pd ON di.id = pd.id
-        AND di.shelf_id = pd.shelf_id
+        AND osp.is_latest_version = TRUE
 ),
 AggregatedItems AS (
     SELECT
@@ -272,24 +248,24 @@ AggregatedItems AS (
                 END)) / quantity) * 7) AS dos1
     FROM
         DistinctItems
-GROUP BY
-    filter_config_id,
-    merch_height,
-    merch_width,
-    merch_depth,
-    base_pog_id,
-    store_code,
-    product_code,
-    core_range,
-    name,
-    brand,
-    category_code,
-    merch_style_orig,
-    p_depth,
-    cdt1,
-    cdt2,
-    cdt3,
-    variant
+    GROUP BY
+        filter_config_id,
+        merch_height,
+        merch_width,
+        merch_depth,
+        base_pog_id,
+        store_code,
+        product_code,
+        core_range,
+        name,
+        brand,
+        category_code,
+        merch_style_orig,
+        p_depth,
+        cdt1,
+        cdt2,
+        cdt3,
+        variant
 ),
 combined_data AS (
     SELECT
